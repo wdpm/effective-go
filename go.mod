@@ -1,3 +1,3 @@
-module github.com/inancgumus/effective-go-private
+module github.com/inancgumus/effective-go
 
 go 1.17
