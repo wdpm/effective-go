@@ -25,6 +25,10 @@ func Parse(rawurl string) (*URL, error) {
 }
 
 func parseScheme(rawurl string) (scheme, rest string, ok bool) {
+	// why this method should find from index 1?
+	// start find index = 0 means no scheme provided.
+	// case 1: ://foo.com => (index =0) => bad case
+	// case 2: http://foo.com => (index >=1) => happy case. so if index < 1, treat it as an error.
 	return split(rawurl, "://", 1)
 }
 
@@ -69,34 +73,35 @@ func (u *URL) String() string {
 	if u == nil {
 		return ""
 	}
-	var s strings.Builder
+
+	//var s strings.Builder
+	//if sc := u.Scheme; sc != "" {
+	//	s.WriteString(sc)
+	//	s.WriteString("://")
+	//}
+	//if h := u.Host; h != "" {
+	//	s.WriteString(h)
+	//}
+	//if p := u.Path; p != "" {
+	//	s.WriteByte('/')
+	//	s.WriteString(p)
+	//}
+	//return s.String()
+
+	var s string
 	if sc := u.Scheme; sc != "" {
-		s.WriteString(sc)
-		s.WriteString("://")
+		s += sc
+		s += "://"
 	}
 	if h := u.Host; h != "" {
-		s.WriteString(h)
+		s += h
 	}
 	if p := u.Path; p != "" {
-		s.WriteByte('/')
-		s.WriteString(p)
+		s += "/"
+		s += p
 	}
-	return s.String()
-	/*
-		var s string
-		if sc := u.Scheme; sc != "" {
-			s += u.Scheme
-			s += "://"
-		}
-		if h := u.Host; h != "" {
-			s += h
-		}
-		if p := u.Path; p != "" {
-			s += "/"
-			s += p
-		}
-		return s
-	*/
+	return s
+
 }
 
 func (u *URL) testString() string {

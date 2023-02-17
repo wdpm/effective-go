@@ -22,8 +22,12 @@ func main() {
 	}
 }
 
-func banner() string { return bannerText[1:] }
+func banner() string {
+	// remove the first newline character
+	return bannerText[1:]
+}
 
+// go run . http://example.com
 func run(s *flag.FlagSet, args []string, out io.Writer) error {
 	f := &flags{
 		n: 100,

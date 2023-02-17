@@ -23,6 +23,24 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestParseNoPath(t *testing.T) {
+	const rawurl = "https://foo.com"
+
+	want := &URL{
+		Scheme: "https",
+		Host:   "foo.com",
+		Path:   "",
+	}
+
+	got, err := Parse(rawurl)
+	if err != nil {
+		t.Fatalf("Parse(%q) err = %q, want nil", rawurl, err)
+	}
+	if *got != *want {
+		t.Errorf("Parse(%q):\n\tgot:  %s\n\twant: %s\n", rawurl, got.testString(), want.testString())
+	}
+}
+
 func TestParseInvalidURLs(t *testing.T) {
 	tests := map[string]string{
 		"missing scheme": "foo.com",
@@ -93,11 +111,23 @@ func TestURLString(t *testing.T) {
 }
 
 func BenchmarkURLString(b *testing.B) {
+	b.Logf("Loop time %d\n", b.N)
+	b.ReportAllocs()
 	u := &URL{Scheme: "https", Host: "foo.com", Path: "go"}
 	for i := 0; i < b.N; i++ {
 		_ = u.String()
 	}
 }
+
+//BenchmarkURLString
+//    url_test.go:114: Loop time 1
+//    url_test.go:114: Loop time 100
+//    url_test.go:114: Loop time 10000
+//    url_test.go:114: Loop time 1000000
+//    url_test.go:114: Loop time 6649539
+//    url_test.go:114: Loop time 9788378
+//BenchmarkURLString-8     9788378               131.3 ns/op            56 B/op
+//               3 allocs/op
 
 /*
 // Sub-benchmarks

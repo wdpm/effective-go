@@ -68,6 +68,8 @@ func validateURL(s string) error {
 	return err
 }
 
+// 去探索一下IntVar的源码，对比和这个number有什么区别
+
 // number is a natural number.
 type number int
 
