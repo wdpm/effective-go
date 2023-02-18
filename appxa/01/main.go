@@ -22,4 +22,5 @@ func main() {
 		go sumUp()
 	}
 	fmt.Println(total)
+	// 0
 }

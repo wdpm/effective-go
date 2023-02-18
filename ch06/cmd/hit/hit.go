@@ -47,9 +47,16 @@ func run(s *flag.FlagSet, args []string, out io.Writer) error {
 		fmt.Fprintf(out, "(RPS: %d)\n", f.rps)
 	}
 
+	// the overall timeout
 	const timeout = time.Minute
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
+
+	//In that case, only the notification context will be canceled, but not the timeout
+	//context since a child context cannot cancel (and should not!) its parent
+	//context. Luckily, since you call the cancel function at the end of the run
+	//function (thanks to the defer statement!), the timeout context will be
+	//canceled too and release its acquired resources
 	defer cancel()
 	defer stop()
 

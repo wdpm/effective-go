@@ -57,6 +57,10 @@ func (c *Client) do(ctx context.Context, r *http.Request, n int) *Result {
 	p := produce(ctx, n, func() *http.Request {
 		return r.Clone(ctx)
 	})
+	//For example, the throttler will slow down each
+	//request value by half a second if RPS is two (second/2=half a second) so
+	//that the pipeline will send two requests per second. Then, you multiply the
+	//RPS field with the C field to adjust for concurrency
 	if c.RPS > 0 {
 		p = throttle(ctx, p, time.Second/time.Duration(c.RPS*c.concurrency()))
 	}

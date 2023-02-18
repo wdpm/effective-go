@@ -17,6 +17,7 @@ func main() {
 
 	var total int
 	sumUp := func(c chan<- int, n int) {
+		fmt.Printf("n: %d\n", n)
 		for ; n > 0; n-- {
 			c <- fetch("http://foo.com")
 		}

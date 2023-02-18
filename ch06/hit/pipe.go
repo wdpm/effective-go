@@ -39,6 +39,7 @@ func Throttle(ctx context.Context, in <-chan *http.Request, out chan<- *http.Req
 // what split receives from in, and sends results to out.
 func Split(in <-chan *http.Request, out chan<- *Result, c int, fn SendFunc) {
 	send := func() {
+		// FIFO: get request one by one
 		for r := range in {
 			out <- fn(r)
 		}

@@ -70,22 +70,22 @@ $ go test -v -run=URL/without
 === RUN TestURLPort/ip_without_port
 ```
 
-```go
+```
 func TestURLPort(t *testing.T) {
-testPort := func (in, wantPort string) func(*testing.T) { #A
-return func (t *testing.T) { #A
-t.Helper()
-u := &URL{Host: in}
-if got := u.Port(); got != wantPort {
-t.Errorf("for host %q; got %q; want %q", in, got, wantPort)
-}
-} #A
-}
-t.Run("with port", testPort("foo.com:80", "80")) #B
-t.Run("with empty port", testPort("foo.com:", "")) #B
-t.Run("without port", testPort("foo.com", "")) #B
-t.Run("ip with port", testPort("1.2.3.4:90", "90")) #B
-t.Run("ip without port", testPort("1.2.3.4", "")) #B
+  testPort := func (in, wantPort string) func(*testing.T) { #A
+    return func (t *testing.T) { #A
+        t.Helper()
+        u := &URL{Host: in}
+        if got := u.Port(); got != wantPort {
+          t.Errorf("for host %q; got %q; want %q", in, got, wantPort)
+        }
+    } #A
+  }
+  t.Run("with port", testPort("foo.com:80", "80")) #B
+  t.Run("with empty port", testPort("foo.com:", "")) #B
+  t.Run("without port", testPort("foo.com", "")) #B
+  t.Run("ip with port", testPort("1.2.3.4:90", "90")) #B
+  t.Run("ip without port", testPort("1.2.3.4", "")) #B
 }
 ```
 
@@ -196,7 +196,7 @@ github.com/inancgumus/effective-go/ch04/url/url.go:106: testString      0.0%
 total:                                                  (statements)    93.9%
 ```
 
-- 个别 private 函数可能没有覆盖，需要补测试。
+- 个别 private 函数可能没有覆盖，需要补充测试。
 
 ---
 这个命令只关注覆盖率。
@@ -399,7 +399,7 @@ compile:
 需要 make 工具和 go 同时正确安装。要么在宿主环境安装，要么在 WSL2 环境安装（以 Windows10 为例）.
 
 这是在 WSL2（go 1.18 + GNU Make 4.3 Built for x86_64-pc-linux-gnu ）下的编译结果：
-> Windows OS下 MinGW 这类工具年久失修，不再建议使用。
+> Windows OS 下 MinGW 这类工具年久失修，不再建议使用。
 
 ```bash
 root@DESKTOP-QLDBOG2:/mnt/d/Code/MyGithubProjects/effective-go/ch05/bin# tree
@@ -412,7 +412,7 @@ root@DESKTOP-QLDBOG2:/mnt/d/Code/MyGithubProjects/effective-go/ch05/bin# tree
 
 strconv.ParseInt vs. strconv.Atoi
 
-Go 一个 package中只能有一个main func，除非你将scope改成 file。
+Go 一个 package 中只能有一个 main func，除非你将 scope 改成 file。
 
 ---
 
@@ -421,6 +421,8 @@ Go build tags 构建忽略设置。参考文件：hit_test.go
 https://pkg.go.dev/cmd/go#hdr-Build_constraints
 
 ### Exercises
+
+> TODO
 
 Make sure to add relevant fields (to the flags struct) and tests for the
 following exercises.
@@ -454,3 +456,127 @@ Making ...
 Tip: The user passes the same flag twice, and the flag package calls the Set
 method of the dynamic value twice! You can use this fact and append the
 values to a slice in the dynamic type.
+
+## 6 Concurrent API Design
+
+```bash
+go run . -n 1000 -c 10 -t 1 http://localhost:9090
+```
+
+1000 个请求 ，并发度为 10（这里指代 goroutines 有 10 个），-t 表示 rps 属性，个人觉得这里还不如使用 -rps。
+
+```
+s.Var(toNumber(&f.rps), "t", "Throttle requests per second")
+```
+
+-t=1，表示 rps=1，也就是期望 1 秒只有一个请求。但是，这里并发度为 10，那么该如何理解呢？
+
+> You told the hit tool to limit the requests per second to one. Since there were
+> ten goroutines, the client adjusted the throttling to ten.
+
+在本地启动一个简易的测试服务器。
+
+```bash
+py -m http.server 9090
+```
+
+参照 1
+
+```bash
+$ go run . -n 1000 -c 10  http://localhost:9090
+
+Making 1000 requests to http://localhost:9090 with a concurrency level of 10.
+
+Summary:
+        RPS        : 443.0
+        Duration   : 2.257449s
+```
+
+参照 2
+
+```bash
+$ go run . -n 1000 -c 1  http://localhost:9090
+
+Making 1000 requests to http://localhost:9090 with a concurrency level of 1.
+
+Summary:
+        RPS        : 347.0
+        Duration   : 2.881779s
+```
+
+试验 1
+
+```bash
+$ go run . -n 1000 -c 10 -t 1  http://localhost:9090
+
+Making 1000 requests to http://localhost:9090 with a concurrency level of 10.
+(RPS: 1)
+
+Summary:
+        RPS        : 10.0
+        Duration   : 1m40.006274s
+```
+
+`-c 10 -t 1` => (RPS: 1)，这里的 RPS 只是显示问题，实际并发度是 1*10=10 个请求 /s。
+因为有 1000 个请求，因此粗略计算为 1000/10=100s=1m40s，和结果基本吻合。
+
+可以看到，限流的作用非常明显。`-c 10 -t 1` 的限制能力远远强于 `-c 1`。
+
+- `-t 1` 直接从平均时间的并发数指标上锁死了程序的并发能力。
+- `-c 1` 只是限制了 goroutine 的数量，即使只有一个 goroutine，程序依旧不慢，因为不需要间隔性等待。
+
+### Graceful cancellation
+
+Imagine you want to send millions of requests and, for some reason, want to
+cancel the ongoing work. Or, you might want to stop sending requests after a
+specific time (timeout).
+
+=> use context.Context
+
+---
+
+Canceling in-flight requests
+
+When the context is canceled, you stopped producing more request values,
+but what about the ones already in progress?
+
+Fortunately, the http package allows you to stop an in-flight request. You can
+do it by cloning a request with a cancelable context.
+
+---
+
+Go 的错误处理： https://go.dev/blog/go1.13-errors
+
+---
+
+中途取消：Ctrl + C => SIGNAL
+
+=> you can use the signal package's `NotifyContext` function to
+catch the signal.
+
+### Sending HTTP requests
+
+Tweaking the connection pool option on transport layer.
+
+### 6.5 Testing
+
+summary:
+
+- Achieving an effective architecture is mostly about reducing complexity
+  by dividing a task into composable parts where each will be responsible
+  for doing a smaller set of tasks.
+- API is what you export from a package. Hide complexity behind a
+  simple and synchronous API and let other people decide when to use
+  your API concurrently. Concurrency is an implementation detail.
+- Concurrency is structuring a program as independently executing
+  components. A concurrent pipeline is an extensible and efficient design
+  pattern consisting of concurrent stages. You can easily add and remove
+  stages and compose different pipelines without changing stage code.
+- Spawning goroutines is easy, but shutting them down is not. It's because
+  the Go language does not offer a way to stop a goroutine, at least not
+  directly. Fortunately, the context package provides a straightforward
+  way to stop goroutines.
+- The http package allows you to send HTTP requests, and the httptest
+  package can launch a test server to test code that sends HTTP requests.
+- Rob Pike's option functions pattern lets you provide a customizable API
+  without complicating the API surface area

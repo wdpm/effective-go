@@ -36,6 +36,7 @@ func (r *Result) Merge(o *Result) {
 
 	switch {
 	case o.Error != nil:
+		// "fallthrough" runs the next case clause without checking the case's condition
 		fallthrough
 	case o.Status >= http.StatusBadRequest:
 		r.Errors++
